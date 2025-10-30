@@ -6,9 +6,13 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Peminjaman;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Traits\RespondsWithFlashMessages;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\View;
 
 class SatpamPeminjamanController extends Controller
 {
+    use RespondsWithFlashMessages;
     /**
      * Tampilkan semua peminjaman yang sudah disetujui.
      */
@@ -56,11 +60,75 @@ class SatpamPeminjamanController extends Controller
      */
     public function downloadPdf($id)
     {
-        $peminjaman = Peminjaman::where('status', 'disetujui')->findOrFail($id);
+        try {
+            // Find approved booking only
+            $peminjaman = Peminjaman::where('status', 'disetujui')->findOrFail($id);
 
-        $pdf = PDF::loadView('satpam.peminjaman.pdf', compact('peminjaman'));
+            // Check if view exists
+            if (!View::exists('satpam.peminjaman.pdf')) {
+                Log::error('Satpam PDF template not found', [
+                    'peminjaman_id' => $id,
+                    'template' => 'satpam.peminjaman.pdf'
+                ]);
 
-        return $pdf->download('peminjaman-' . $peminjaman->id . '.pdf');
+                return $this->respondWithError(
+                    'Template PDF tidak ditemukan. Silakan hubungi administrator.'
+                );
+            }
+
+            // Load relationships
+            $peminjaman->load(['user', 'ruangan.gedung']);
+
+            // Validate required relationships
+            if (!$peminjaman->ruangan) {
+                throw new \Exception('Data ruangan tidak ditemukan');
+            }
+
+            // Generate PDF
+            $pdf = Pdf::loadView('satpam.peminjaman.pdf', compact('peminjaman'))
+                ->setPaper('a4', 'portrait')
+                ->setOptions([
+                    'isHtml5ParserEnabled' => true,
+                    'isPhpEnabled' => true,
+                    'defaultFont' => 'Arial',
+                    'isRemoteEnabled' => true,
+                ]);
+
+            // Generate filename
+            $filename = sprintf(
+                'Peminjaman_%s_%s.pdf',
+                $peminjaman->id,
+                $peminjaman->tanggal->format('Y-m-d')
+            );
+
+            // Log success
+            Log::info('Satpam PDF generated', [
+                'peminjaman_id' => $id,
+                'filename' => $filename
+            ]);
+
+            return $pdf->download($filename);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            Log::warning('Peminjaman not found for PDF', ['id' => $id]);
+
+            return $this->respondWithError(
+                'Peminjaman tidak ditemukan atau belum disetujui.'
+            );
+        } catch (\Exception $e) {
+            Log::error('Satpam PDF generation failed', [
+                'peminjaman_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            $errorMessage = 'Terjadi kesalahan saat membuat PDF. Silakan coba lagi.';
+
+            if (config('app.debug')) {
+                $errorMessage .= ' Error: ' . $e->getMessage();
+            }
+
+            return $this->respondWithError($errorMessage);
+        }
     }
     public function dashboard()
     {

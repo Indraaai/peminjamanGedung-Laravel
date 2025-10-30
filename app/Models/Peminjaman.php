@@ -4,11 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Carbon\Carbon;
 
 class Peminjaman extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
+
     protected $table = 'peminjamans';
 
     protected $fillable = [
@@ -20,11 +22,16 @@ class Peminjaman extends Model
         'tujuan',
         'dokumen',
         'status',
-        'catatan_admin'
+        'catatan_admin',
+        'cancelled_by',
+        'cancelled_at',
+        'cancellation_reason'
     ];
 
     protected $casts = [
         'tanggal' => 'date',
+        'cancelled_at' => 'datetime',
+        'deleted_at' => 'datetime',
     ];
 
     // Relationships
@@ -36,6 +43,11 @@ class Peminjaman extends Model
     public function ruangan()
     {
         return $this->belongsTo(Ruangan::class);
+    }
+
+    public function cancelledBy()
+    {
+        return $this->belongsTo(User::class, 'cancelled_by', 'id');
     }
 
     // Query Scopes
@@ -67,6 +79,11 @@ class Peminjaman extends Model
     public function scopeRejected($query)
     {
         return $query->where('status', 'ditolak');
+    }
+
+    public function scopeCancelled($query)
+    {
+        return $query->where('status', 'dibatalkan');
     }
 
     public function scopeConflictCheck($query, $roomId, $date, $excludeId = null)
@@ -119,7 +136,8 @@ class Peminjaman extends Model
         $texts = [
             'menunggu' => 'Menunggu Persetujuan',
             'disetujui' => 'Disetujui',
-            'ditolak' => 'Ditolak'
+            'ditolak' => 'Ditolak',
+            'dibatalkan' => 'Dibatalkan'
         ];
 
         return $texts[$this->status] ?? 'Status Tidak Diketahui';
@@ -130,7 +148,8 @@ class Peminjaman extends Model
         $icons = [
             'menunggu' => '⏳',
             'disetujui' => '✅',
-            'ditolak' => '❌'
+            'ditolak' => '❌',
+            'dibatalkan' => '🚫'
         ];
 
         return $icons[$this->status] ?? '❓';

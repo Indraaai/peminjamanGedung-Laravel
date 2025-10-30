@@ -38,31 +38,29 @@ Route::middleware('auth')->group(function () {
 
     // Routing untuk peminjam (mahasiswa/dosen)
     Route::middleware(['profile.completed'])->group(function () {
+        // Katalog ruangan
+        Route::get('/katalog', [PeminjamanController::class, 'katalog'])->name('katalog.index');
+
+        // Peminjaman routes
         Route::get('/peminjaman', [PeminjamanController::class, 'index'])->name('peminjaman.index');
         Route::get('/peminjaman/create', [PeminjamanController::class, 'create'])->name('peminjaman.create');
-        Route::post('/peminjaman', [PeminjamanController::class, 'store'])->name('peminjaman.store');
-        Route::get('/katalog-ruangan', [PeminjamanController::class, 'katalog'])->name('katalog.index');
-        Route::get('/peminjaman/{peminjaman}', [PeminjamanController::class, 'show'])
-            ->name('peminjaman.show');
 
-
-        //endpoint kalender
+        // API endpoints MUST come BEFORE dynamic routes
         Route::get('/peminjaman/availability', [PeminjamanController::class, 'availability'])
             ->name('peminjaman.availability');
-
-        // Endpoint untuk daftar tanggal yang sudah dipinjam
         Route::get('/peminjaman/occupied-dates', [PeminjamanController::class, 'occupiedDates'])
             ->name('peminjaman.occupied-dates');
-
-        // New API endpoints for enhanced conflict detection
         Route::get('/peminjaman/check-conflict', [PeminjamanController::class, 'checkConflict'])
             ->name('peminjaman.check-conflict');
-
         Route::get('/peminjaman/suggest-dates', [PeminjamanController::class, 'suggestDates'])
             ->name('peminjaman.suggest-dates');
-
         Route::get('/peminjaman/room-summary', [PeminjamanController::class, 'roomSummary'])
             ->name('peminjaman.room-summary');
+
+        Route::post('/peminjaman', [PeminjamanController::class, 'store'])
+            ->name('peminjaman.store');
+        Route::get('/peminjaman/{peminjaman}', [PeminjamanController::class, 'show'])
+            ->name('peminjaman.show');
 
         Route::delete('/peminjaman/{peminjaman}/batal', [PeminjamanController::class, 'cancel'])
             ->middleware(['auth'])
@@ -80,8 +78,11 @@ Route::middleware('auth')->group(function () {
         Route::get('/dashboard', [DashboardAdminController::class, 'index'])->name('dashboard');
         Route::resource('gedung', GedungController::class);
         Route::resource('ruangan', RuanganController::class);
-        Route::resource('peminjaman', AdminPeminjamanController::class)->only(['index', 'show', 'update']);
+
+        // Export route MUST be before resource route to avoid conflict with {peminjaman} wildcard
         Route::get('peminjaman/export', [PeminjamanExportController::class, 'export'])->name('peminjaman.export');
+
+        Route::resource('peminjaman', AdminPeminjamanController::class)->only(['index', 'show', 'update']);
         Route::resource('satpam', SatpamController::class);
 
         // Route test Excel yang berfungsi - dikembalikan untuk debugging

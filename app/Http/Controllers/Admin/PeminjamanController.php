@@ -6,12 +6,34 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Peminjaman;
 use App\Models\User;
+use App\Services\PeminjamanService;
+use App\Services\ConflictDetectionService;
+use App\Traits\RespondsWithFlashMessages;
+use Carbon\Carbon;
 
 class PeminjamanController extends Controller
 {
+    use RespondsWithFlashMessages;
+
+    protected $peminjamanService;
+    protected $conflictService;
+
+    public function __construct(
+        PeminjamanService $peminjamanService,
+        ConflictDetectionService $conflictService
+    ) {
+        $this->peminjamanService = $peminjamanService;
+        $this->conflictService = $conflictService;
+    }
     public function index(Request $request)
     {
-        $query = Peminjaman::with(['ruangan.gedung', 'user']);
+        // Fix N+1 Query: Add eager loading for profil relationships
+        $query = Peminjaman::with([
+            'ruangan.gedung',
+            'user',
+            'user.profilMahasiswa',
+            'user.profilDosen'
+        ]);
 
         // Filter: Status (hanya jika user memilih)
         if ($request->filled('status') && $request->status !== 'semua') {
@@ -43,6 +65,13 @@ class PeminjamanController extends Controller
 
     public function show(Peminjaman $peminjaman)
     {
+        // Eager load relationships to avoid N+1
+        $peminjaman->load([
+            'user.profilMahasiswa',
+            'user.profilDosen',
+            'ruangan.gedung'
+        ]);
+
         $user = $peminjaman->user;
 
         if ($user->role === 'mahasiswa') {
@@ -59,29 +88,65 @@ class PeminjamanController extends Controller
 
     public function update(Request $request, Peminjaman $peminjaman)
     {
-        $request->validate([
+        $validated = $request->validate([
             'status' => 'required|in:disetujui,ditolak,menunggu',
             'catatan_admin' => 'nullable|string',
         ]);
 
-        // SIMPLIFIED CONFLICT CHECK: Daily-based for approval
+        // CRITICAL FIX: Add authorization checks for approval
         if ($request->status === 'disetujui') {
-            $conflict = Peminjaman::where('ruangan_id', $peminjaman->ruangan_id)
-                ->where('tanggal', $peminjaman->tanggal)
-                ->where('status', 'disetujui')
-                ->where('id', '!=', $peminjaman->id)
-                ->exists();
+            // Check if booking date has passed
+            $tanggalPeminjaman = Carbon::parse($peminjaman->tanggal);
 
-            if ($conflict) {
-                return back()->with('error', 'Gagal menyetujui: Ruangan sudah dipinjam pada tanggal tersebut.');
+            if ($tanggalPeminjaman->isPast()) {
+                return $this->respondWithError(
+                    'Tidak dapat menyetujui peminjaman untuk tanggal yang sudah lewat.'
+                );
+            }
+
+            // Check for conflicts using ConflictDetectionService
+            if ($this->conflictService->checkDailyConflict(
+                $peminjaman->ruangan_id,
+                $peminjaman->tanggal,
+                $peminjaman->id
+            )) {
+                return $this->respondWithError(
+                    'Gagal menyetujui: Ruangan sudah dipinjam pada tanggal tersebut.'
+                );
             }
         }
 
-        $peminjaman->update([
-            'status' => $request->status,
-            'catatan_admin' => $request->catatan_admin,
-        ]);
+        // Validate status transitions
+        $validTransitions = [
+            'menunggu' => ['disetujui', 'ditolak'],
+            'disetujui' => ['ditolak'],  // Can be cancelled
+            'ditolak' => [],  // Cannot be changed
+        ];
 
-        return redirect()->route('admin.peminjaman.index')->with('success', 'Peminjaman diperbarui.');
+        $currentStatus = $peminjaman->status;
+        $newStatus = $request->status;
+
+        if (!in_array($newStatus, $validTransitions[$currentStatus] ?? [])) {
+            return $this->respondWithError(
+                "Tidak dapat mengubah status dari '{$currentStatus}' ke '{$newStatus}'."
+            );
+        }
+
+        try {
+            // Use service for consistent business logic
+            $this->peminjamanService->updateStatus(
+                $peminjaman,
+                $request->status,
+                $request->catatan_admin
+            );
+
+            $statusText = $newStatus === 'disetujui' ? 'disetujui' : 'ditolak';
+            return $this->respondWithSuccess(
+                "Peminjaman berhasil {$statusText}.",
+                'admin.peminjaman.index'
+            );
+        } catch (\Exception $e) {
+            return $this->respondWithError($e->getMessage());
+        }
     }
 }

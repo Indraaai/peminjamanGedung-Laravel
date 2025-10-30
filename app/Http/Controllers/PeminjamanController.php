@@ -8,9 +8,28 @@ use App\Models\Ruangan;
 use App\Models\Gedung;
 use Illuminate\Support\Facades\Auth;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\ConflictDetectionService;
+use App\Services\PeminjamanService;
+use App\Http\Requests\StorePeminjamanRequest;
+use App\Traits\RespondsWithFlashMessages;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\View;
 
 class PeminjamanController extends Controller
 {
+    use RespondsWithFlashMessages;
+
+    protected $peminjamanService;
+    protected $conflictService;
+
+    public function __construct(
+        PeminjamanService $peminjamanService,
+        ConflictDetectionService $conflictService
+    ) {
+        $this->peminjamanService = $peminjamanService;
+        $this->conflictService = $conflictService;
+    }
+
     public function katalog()
     {
         $gedungs = Gedung::with('ruangans')->get();
@@ -52,41 +71,50 @@ class PeminjamanController extends Controller
         return view('peminjam.peminjaman.create', compact('ruangan'));
     }
 
-    public function store(Request $request)
+    public function store(StorePeminjamanRequest $request)
     {
-        $validated = $request->validate([
-            'ruangan_id'   => 'required|exists:ruangans,id',
-            'tanggal'      => 'required|date|after_or_equal:today',
-            'jam_mulai'    => 'required',
-            'jam_selesai'  => 'required|after:jam_mulai',
-            'tujuan'       => 'required|string|max:255',
-            'dokumen'      => 'nullable|mimes:pdf|max:2048',
-        ]);
+        // Log untuk debugging
+        Log::info('Store Peminjaman - Request Data:', $request->all());
 
-        // SIMPLIFIED CONFLICT CHECK: Daily-based instead of time-based
-        $conflict = Peminjaman::where('ruangan_id', $validated['ruangan_id'])
-            ->where('tanggal', $validated['tanggal'])
-            ->whereIn('status', ['menunggu', 'disetujui'])
-            ->exists();
+        // Validation handled by StorePeminjamanRequest
+        $validated = $request->validated();
 
-        if ($conflict) {
-            return back()
-                ->withErrors(['conflict' => 'Ruangan sudah dipinjam pada tanggal yang dipilih. Silakan pilih tanggal lain.'])
-                ->withInput();
+        Log::info('Store Peminjaman - Validated Data:', $validated);
+
+        // Use ConflictDetectionService for consistent conflict checking
+        if ($this->conflictService->checkDailyConflict($validated['ruangan_id'], $validated['tanggal'])) {
+            Log::warning('Store Peminjaman - Conflict detected');
+            return $this->respondWithConflict(
+                'Ruangan sudah dipinjam pada tanggal yang dipilih. Silakan pilih tanggal lain.'
+            );
         }
 
         if ($request->hasFile('dokumen')) {
             $validated['dokumen'] = $request->file('dokumen')->store('dokumen', 'public');
+            Log::info('Store Peminjaman - Dokumen uploaded:', ['path' => $validated['dokumen']]);
         }
 
-        $validated['user_id'] = Auth::id();
-        $validated['status']  = 'menunggu';
+        try {
+            // Use PeminjamanService for consistent business logic
+            $peminjaman = $this->peminjamanService->createPeminjaman($validated);
 
-        Peminjaman::create($validated);
+            Log::info('Store Peminjaman - Success:', ['id' => $peminjaman->id]);
 
-        return redirect()
-            ->route('peminjaman.index')
-            ->with('success', 'Pengajuan peminjaman berhasil dikirim.');
+            return $this->respondWithSuccess(
+                'Pengajuan peminjaman berhasil dikirim. Mohon tunggu persetujuan dari admin.',
+                'peminjaman.index'
+            );
+        } catch (\Exception $e) {
+            Log::error('Store Peminjaman - Error:', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return $this->respondWithError(
+                'Terjadi kesalahan: ' . $e->getMessage(),
+                withInput: true
+            );
+        }
     }
 
     /**
@@ -107,19 +135,46 @@ class PeminjamanController extends Controller
 
         return response()->json($events);
     }
-    public function cancel(Peminjaman $peminjaman)
+    public function cancel(Request $request, Peminjaman $peminjaman)
     {
+        // Authorization: Only owner can cancel
         if ($peminjaman->user_id != Auth::id()) {
-            abort(403); // Hanya pemilik peminjaman yang bisa membatalkan
+            abort(403, 'Anda tidak memiliki izin untuk membatalkan peminjaman ini.');
         }
 
+        // Business rule: Can only cancel pending bookings
         if ($peminjaman->status !== 'menunggu') {
-            return back()->with('error', 'Peminjaman tidak bisa dibatalkan karena sudah diproses.');
+            return $this->respondWithError(
+                'Peminjaman tidak bisa dibatalkan karena sudah diproses.'
+            );
         }
 
-        $peminjaman->delete(); // Atau ->update(['status' => 'dibatalkan']) jika ingin riwayat tetap ada
+        // Business rule: Cannot cancel past bookings
+        if ($peminjaman->is_past) {
+            return $this->respondWithError(
+                'Peminjaman tidak bisa dibatalkan karena tanggal sudah lewat.'
+            );
+        }
 
-        return back()->with('success', 'Peminjaman berhasil dibatalkan.');
+        // Validate cancellation reason (optional)
+        $validated = $request->validate([
+            'alasan' => 'nullable|string|max:500'
+        ]);
+
+        // Update status and add cancellation tracking
+        $peminjaman->update([
+            'status' => 'dibatalkan',
+            'cancelled_by' => Auth::id(),
+            'cancelled_at' => now(),
+            'cancellation_reason' => $validated['alasan'] ?? 'Dibatalkan oleh peminjam'
+        ]);
+
+        // Soft delete for audit trail
+        $peminjaman->delete();
+
+        return $this->respondWithSuccess(
+            'Peminjaman berhasil dibatalkan. Anda dapat mengajukan peminjaman baru.'
+        );
     }
     /**
      * Get all occupied dates for a specific room
@@ -138,7 +193,7 @@ class PeminjamanController extends Controller
 
         return response()->json($occupiedDates);
     }
-    
+
     /**
      * Check conflict for a specific date and room
      */
@@ -149,16 +204,16 @@ class PeminjamanController extends Controller
             'tanggal' => 'required|date',
             'exclude_id' => 'nullable|exists:peminjamans,id'
         ]);
-        
+
         $conflictService = app(ConflictDetectionService::class);
         $availability = $conflictService->checkAvailability(
-            $request->ruangan_id, 
+            $request->ruangan_id,
             $request->tanggal
         );
-        
+
         return response()->json($availability);
     }
-    
+
     /**
      * Suggest alternative dates for a room
      */
@@ -169,20 +224,20 @@ class PeminjamanController extends Controller
             'start_date' => 'required|date',
             'days' => 'nullable|integer|min:1|max:30'
         ]);
-        
+
         $conflictService = app(ConflictDetectionService::class);
         $suggestions = $conflictService->suggestAlternativeDates(
             $request->ruangan_id,
             $request->start_date,
             $request->get('days', 7)
         );
-        
+
         return response()->json([
             'suggestions' => $suggestions,
             'total_available' => count($suggestions)
         ]);
     }
-    
+
     /**
      * Get room booking summary
      */
@@ -193,17 +248,17 @@ class PeminjamanController extends Controller
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date'
         ]);
-        
+
         $conflictService = app(ConflictDetectionService::class);
         $summary = $conflictService->getConflictSummary(
             $request->ruangan_id,
             $request->start_date,
             $request->end_date
         );
-        
+
         return response()->json($summary);
     }
-    
+
     /**
      * Download PDF proof for approved booking
      */
@@ -216,13 +271,41 @@ class PeminjamanController extends Controller
 
         // Only allow PDF download for approved bookings
         if ($peminjaman->status !== 'disetujui') {
-            return back()->with('error', 'Bukti peminjaman hanya tersedia untuk peminjaman yang telah disetujui.');
+            return $this->respondWithError(
+                'Bukti peminjaman hanya tersedia untuk peminjaman yang telah disetujui.'
+            );
         }
 
         try {
+            // Check if PDF view exists
+            if (!View::exists('pdf.booking-proof')) {
+                Log::error('PDF template not found', [
+                    'peminjaman_id' => $peminjaman->id,
+                    'user_id' => Auth::id(),
+                    'template' => 'pdf.booking-proof'
+                ]);
+
+                return $this->respondWithError(
+                    'Template PDF tidak ditemukan. Silakan hubungi administrator.'
+                );
+            }
+
             // Load booking with relationships for PDF
             $peminjaman->load(['user', 'ruangan.gedung']);
-            
+
+            // Validate required relationships exist
+            if (!$peminjaman->user) {
+                throw new \Exception('Data pengguna tidak ditemukan');
+            }
+
+            if (!$peminjaman->ruangan) {
+                throw new \Exception('Data ruangan tidak ditemukan');
+            }
+
+            if (!$peminjaman->ruangan->gedung) {
+                throw new \Exception('Data gedung tidak ditemukan');
+            }
+
             // Generate PDF from view
             $pdf = Pdf::loadView('pdf.booking-proof', compact('peminjaman'))
                 ->setPaper('a4', 'portrait')
@@ -234,16 +317,40 @@ class PeminjamanController extends Controller
                 ]);
 
             // Generate filename with booking details
-            $filename = 'Bukti_Peminjaman_' . 
-                        str_replace(' ', '_', $peminjaman->ruangan->nama) . '_' . 
-                        $peminjaman->tanggal->format('Y-m-d') . '_' . 
-                        str_replace(':', '', $peminjaman->jam_mulai) . '.pdf';
+            $filename = sprintf(
+                'Bukti_Peminjaman_%s_%s_%s.pdf',
+                str_replace(' ', '_', $peminjaman->ruangan->nama),
+                $peminjaman->tanggal->format('Y-m-d'),
+                str_replace(':', '', $peminjaman->jam_mulai)
+            );
+
+            // Log successful PDF generation
+            Log::info('PDF generated successfully', [
+                'peminjaman_id' => $peminjaman->id,
+                'user_id' => Auth::id(),
+                'filename' => $filename
+            ]);
 
             // Return PDF download
             return $pdf->download($filename);
-
         } catch (\Exception $e) {
-            return back()->with('error', 'Terjadi kesalahan saat membuat bukti peminjaman. Silakan coba lagi.');
+            // Log detailed error
+            Log::error('PDF generation failed', [
+                'peminjaman_id' => $peminjaman->id,
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            // User-friendly error message
+            $errorMessage = 'Terjadi kesalahan saat membuat bukti peminjaman. Silakan coba lagi atau hubungi administrator.';
+
+            // Add technical details in development environment
+            if (config('app.debug')) {
+                $errorMessage .= ' Error: ' . $e->getMessage();
+            }
+
+            return $this->respondWithError($errorMessage);
         }
     }
 }

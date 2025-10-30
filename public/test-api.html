@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API Endpoints - Peminjaman Gedung</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .test-section {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .result {
+            background: #f5f5f5;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: monospace;
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .result pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .status-success {
+            background: #10b981;
+            color: white;
+        }
+
+        .status-error {
+            background: #ef4444;
+            color: white;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🧪 Test API Endpoints - Peminjaman Gedung</h1>
+
+        <div class="grid">
+            <!-- Test 1: Availability API -->
+            <div class="card">
+                <h2>📅 Test Availability API</h2>
+                <div class="test-section">
+                    <label>Ruangan ID:</label>
+                    <input type="number" id="ruangan_id_1" value="1" min="1">
+
+                    <label>Tanggal:</label>
+                    <input type="date" id="tanggal_1">
+
+                    <button onclick="testAvailability()">🚀 Test API</button>
+                </div>
+                <div id="result-1" class="result" style="display:none;"></div>
+            </div>
+
+            <!-- Test 2: Occupied Dates API -->
+            <div class="card">
+                <h2>📋 Test Occupied Dates API</h2>
+                <div class="test-section">
+                    <label>Ruangan ID:</label>
+                    <input type="number" id="ruangan_id_2" value="1" min="1">
+
+                    <button onclick="testOccupiedDates()">🚀 Test API</button>
+                </div>
+                <div id="result-2" class="result" style="display:none;"></div>
+            </div>
+        </div>
+
+        <!-- Test 3: Form Submit -->
+        <div class="card">
+            <h2>📝 Test Form Submit</h2>
+            <form id="testForm" action="/peminjaman" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="_token" value="{{ csrf_token() }}">
+
+                <div class="grid">
+                    <div>
+                        <label>Ruangan ID:</label>
+                        <input type="number" name="ruangan_id" value="1" required>
+                    </div>
+
+                    <div>
+                        <label>Tanggal:</label>
+                        <input type="date" name="tanggal" id="tanggal_form" required>
+                    </div>
+
+                    <div>
+                        <label>Jam Mulai:</label>
+                        <input type="time" name="jam_mulai" value="08:00" required>
+                    </div>
+
+                    <div>
+                        <label>Jam Selesai:</label>
+                        <input type="time" name="jam_selesai" value="10:00" required>
+                    </div>
+                </div>
+
+                <label>Keperluan:</label>
+                <input type="text" name="keperluan" value="Test Peminjaman via API Tester" required>
+
+                <button type="submit">📤 Submit Form</button>
+            </form>
+        </div>
+
+        <!-- Test 4: Route List -->
+        <div class="card">
+            <h2>🛣️ Available Routes</h2>
+            <div class="test-section">
+                <button onclick="testRoutes()">🔍 Check Routes</button>
+            </div>
+            <div id="result-routes" class="result" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script>
+        // Set today as default
+        document.addEventListener('DOMContentLoaded', function () {
+            const today = new Date().toISOString().slice(0, 10);
+            document.getElementById('tanggal_1').value = today;
+            document.getElementById('tanggal_form').value = today;
+        });
+
+        async function testAvailability() {
+            const ruanganId = document.getElementById('ruangan_id_1').value;
+            const tanggal = document.getElementById('tanggal_1').value;
+            const resultDiv = document.getElementById('result-1');
+
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<p>⏳ Loading...</p>';
+
+            try {
+                const url = `/peminjaman/availability?ruangan_id=${ruanganId}&tanggal=${tanggal}`;
+                console.log('Fetching:', url);
+
+                const response = await fetch(url);
+                const status = response.status;
+                const data = await response.json();
+
+                let html = `<div class="status ${status === 200 ? 'status-success' : 'status-error'}">${status}</div>`;
+                html += `<p><strong>URL:</strong> ${url}</p>`;
+                html += `<p><strong>Response:</strong></p>`;
+                html += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+
+                resultDiv.innerHTML = html;
+
+                if (status === 200) {
+                    console.log('✅ Success:', data);
+                } else {
+                    console.error('❌ Error:', data);
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="status status-error">ERROR</div><p>${error.message}</p>`;
+                console.error('❌ Fetch error:', error);
+            }
+        }
+
+        async function testOccupiedDates() {
+            const ruanganId = document.getElementById('ruangan_id_2').value;
+            const resultDiv = document.getElementById('result-2');
+
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<p>⏳ Loading...</p>';
+
+            try {
+                const url = `/peminjaman/occupied-dates?ruangan_id=${ruanganId}`;
+                console.log('Fetching:', url);
+
+                const response = await fetch(url);
+                const status = response.status;
+                const data = await response.json();
+
+                let html = `<div class="status ${status === 200 ? 'status-success' : 'status-error'}">${status}</div>`;
+                html += `<p><strong>URL:</strong> ${url}</p>`;
+                html += `<p><strong>Total Records:</strong> ${data.length}</p>`;
+                html += `<p><strong>Response:</strong></p>`;
+                html += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+
+                resultDiv.innerHTML = html;
+
+                if (status === 200) {
+                    console.log('✅ Success:', data);
+                } else {
+                    console.error('❌ Error:', data);
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="status status-error">ERROR</div><p>${error.message}</p>`;
+                console.error('❌ Fetch error:', error);
+            }
+        }
+
+        function testRoutes() {
+            const resultDiv = document.getElementById('result-routes');
+            resultDiv.style.display = 'block';
+
+            const routes = [
+                { name: 'peminjaman.store', method: 'POST', url: '/peminjaman' },
+                { name: 'peminjaman.availability', method: 'GET', url: '/peminjaman/availability' },
+                { name: 'peminjaman.occupied-dates', method: 'GET', url: '/peminjaman/occupied-dates' },
+                { name: 'peminjaman.index', method: 'GET', url: '/peminjaman' },
+                { name: 'katalog.index', method: 'GET', url: '/katalog' }
+            ];
+
+            let html = '<p><strong>Expected Routes:</strong></p><ul>';
+            routes.forEach(route => {
+                html += `<li><strong>${route.method}</strong> ${route.url} → ${route.name}</li>`;
+            });
+            html += '</ul>';
+            html += '<p><em>Verifikasi dengan: <code>php artisan route:list | findstr peminjaman</code></em></p>';
+
+            resultDiv.innerHTML = html;
+        }
+
+        // Form submit handler
+        document.getElementById('testForm').addEventListener('submit', function (e) {
+            console.log('📤 Form submitted!');
+            console.log('Form data:', new FormData(this));
+            // Let it submit normally - don't prevent default
+        });
+    </script>
+</body>
+
+</html>

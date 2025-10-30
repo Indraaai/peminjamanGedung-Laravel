@@ -1,622 +1,694 @@
-{{--
-    File: resources/views/peminjaman/create.blade.php
-
-    Deskripsi:
-    Tampilan untuk form pengajuan peminjaman ruangan. Didesain ulang
-    dengan gaya modern, memisahkan form input dengan informasi ruangan
-    dan kalender ketersediaan untuk pengalaman pengguna yang lebih baik.
---}}
 <x-app-layout>
     {{-- Slot header di-nonaktifkan untuk integrasi judul yang lebih baik --}}
 
-    {{-- FullCalendar CSS --}}
-    <x-slot name="styles">
-        <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css' rel='stylesheet' />
-        <style>
-            .unavailable-slot {
-                background-color: #fee2e2;
-                border-left: 4px solid #ef4444;
-                padding: 12px;
-                margin: 6px 0;
-                border-radius: 8px;
-                font-size: 0.875rem;
-                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            }
-            .pending-slot {
-                background-color: #fef3c7;
-                border-left: 4px solid #f59e0b;
-                padding: 12px;
-                margin: 6px 0;
-                border-radius: 8px;
-                font-size: 0.875rem;
-                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            }
-            .available-info {
-                background-color: #dcfce7;
-                border-left: 4px solid #22c55e;
-                padding: 12px;
-                margin: 6px 0;
-                border-radius: 8px;
-                font-size: 0.875rem;
-                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            }
-            .time-slot-indicator {
-                display: inline-block;
-                width: 12px;
-                height: 12px;
-                border-radius: 50%;
-                margin-right: 8px;
-            }
-            .conflict-warning {
-                animation: pulse 2s infinite;
-                background-color: #fef2f2;
-                border: 2px solid #f87171;
-                border-radius: 8px;
-                padding: 12px;
-            }
-            @keyframes pulse {
-                0%, 100% { opacity: 1; }
-                50% { opacity: 0.8; }
-            }
-            .time-picker-container {
-                position: relative;
-            }
-            .time-suggestion {
-                background-color: #f0f9ff;
-                border: 1px solid #0ea5e9;
-                border-radius: 6px;
-                padding: 8px 12px;
-                margin: 4px 0;
-                cursor: pointer;
-                transition: all 0.2s;
-                font-size: 0.875rem;
-            }
-            .time-suggestion:hover {
-                background-color: #0ea5e9;
-                color: white;
-            }
-            .occupied-dates-list {
-                max-height: 300px;
-                overflow-y: auto;
-            }
-            .date-item {
-                padding: 8px 12px;
-                border-radius: 6px;
-                margin: 4px 0;
-                border-left: 4px solid;
-                font-size: 0.875rem;
-            }
-            .date-approved {
-                background-color: #fee2e2;
-                border-left-color: #ef4444;
-            }
-            .date-pending {
-                background-color: #fef3c7;
-                border-left-color: #f59e0b;
-            }
-        </style>
-    </x-slot>
-
     <div class="py-12 bg-gray-50">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <form method="POST" action="{{ route('peminjaman.store') }}" enctype="multipart/form-data">
-                @csrf
-                <input type="hidden" name="ruangan_id" value="{{ $ruangan->id }}">
 
-                <!-- Header Halaman -->
-                <div class="mb-8">
-                    <h1 class="text-3xl font-bold text-gray-800">Ajukan Peminjaman Ruangan</h1>
-                    <p class="mt-1 text-sm text-gray-500">Isi formulir di bawah untuk mengajukan peminjaman.</p>
+            <!-- Header Halaman -->
+            <div class="mb-8">
+                <h1 class="text-3xl font-bold text-gray-800">Ajukan Peminjaman Ruangan</h1>
+                <p class="mt-1 text-sm text-gray-500">Lengkapi formulir di bawah ini untuk mengajukan peminjaman ruangan.
+                </p>
+            </div>
+
+            <!-- Display All Validation Errors -->
+            @if ($errors->any())
+                <div class="mb-6 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg shadow-sm">
+                    <div class="flex">
+                        <svg class="w-5 h-5 text-red-500 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <div>
+                            <h3 class="text-sm font-semibold mb-2">
+                                Terdapat kesalahan pada form:
+                            </h3>
+                            <ul class="list-disc list-inside text-sm space-y-1">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            <!-- Success Message -->
+            @if (session('success'))
+                <div class="mb-6 bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded-lg shadow-sm">
+                    <div class="flex">
+                        <svg class="w-5 h-5 text-green-500 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <p class="text-sm">{{ session('success') }}</p>
+                    </div>
+                </div>
+            @endif
+
+            <!-- Info Ruangan Card -->
+            <div class="bg-white rounded-2xl shadow-sm mb-8">
+                <div class="p-6">
+                    <div class="flex flex-col md:flex-row items-start md:items-center gap-6">
+                        <div class="flex-shrink-0">
+                            @if ($ruangan->foto)
+                                <img src="{{ asset('storage/' . $ruangan->foto) }}" alt="{{ $ruangan->nama }}"
+                                    class="w-full md:w-48 h-48 object-cover rounded-xl shadow-sm">
+                            @else
+                                <div
+                                    class="w-full md:w-48 h-48 bg-gray-200 rounded-xl flex items-center justify-center">
+                                    <svg class="w-20 h-20 text-gray-400" fill="none" viewBox="0 0 24 24"
+                                        stroke-width="1.5" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+                                    </svg>
+                                </div>
+                            @endif
+                        </div>
+                        <div class="flex-1 space-y-3">
+                            <div>
+                                <h3 class="text-2xl font-bold text-gray-800">{{ $ruangan->nama }}</h3>
+                                <p class="text-sm text-gray-500 flex items-center mt-1">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                    </svg>
+                                    {{ $ruangan->gedung->nama ?? 'Gedung' }}
+                                </p>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                                <div class="flex items-center gap-2 text-sm text-gray-600">
+                                    <svg class="w-5 h-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                        <path
+                                            d="M10 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM3.465 14.493a1.23 1.23 0 0 0 .41 1.412A9.957 9.957 0 0 0 10 18c2.31 0 4.438-.784 6.131-2.095a1.23 1.23 0 0 0 .41-1.412A9.99 9.99 0 0 0 10 12c-2.31 0-4.438.784-6.131 2.095Z" />
+                                    </svg>
+                                    Kapasitas: <strong>{{ $ruangan->kapasitas }} orang</strong>
+                                </div>
+                                <div class="flex items-start gap-2 text-sm text-gray-600">
+                                    <svg class="w-5 h-5 text-gray-400 flex-shrink-0" viewBox="0 0 20 20"
+                                        fill="currentColor">
+                                        <path fill-rule="evenodd"
+                                            d="M15.99 5.99a5 5 0 1 0-11.98 0A5 5 0 0 0 15.99 6Zm-5-3a.75.75 0 0 0-1.5 0v1.51a3.52 3.52 0 0 0-1.116.652l-1.06-1.06a.75.75 0 0 0-1.06 1.06l1.06 1.06a3.522 3.522 0 0 0-.653 1.116H4.49a.75.75 0 0 0 0 1.5h1.51c.14 1.25.783 2.348 1.653 3.099l-1.01 1.75a.75.75 0 1 0 1.3.75l1.01-1.75A4.989 4.989 0 0 0 10 14.5a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 0 1.5 0v-1.5a.75.75 0 0 1 .75-.75c1.29 0 2.47-.48 3.35-1.28l1.01 1.75a.75.75 0 1 0 1.3-.75l-1.01-1.75a4.954 4.954 0 0 0 1.652-3.1h1.51a.75.75 0 0 0 0-1.5h-1.51a3.52 3.52 0 0 0-.653-1.116l1.06-1.06a.75.75 0 0 0-1.06-1.06l-1.06 1.06a3.52 3.52 0 0 0-1.116-.653V2.99a.75.75 0 0 0-1.5 0Z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                    Fasilitas: <strong>{{ $ruangan->fasilitas ?? '-' }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Jadwal Peminjaman Ruangan -->
+            <div class="bg-white rounded-2xl shadow-sm mb-8">
+                <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-bold text-gray-800 flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        Jadwal Peminjaman Ruangan
+                    </h3>
                 </div>
 
-                <!-- Notifikasi Error Global -->
-                @if ($errors->has('conflict'))
-                    <div class="mb-6 bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg shadow-sm conflict-warning"
-                        role="alert">
-                        <p class="font-bold">🚫 Jadwal Konflik</p>
-                        <p>{{ $errors->first('conflict') }}</p>
-                    </div>
-                @endif
-
-                <!-- Layout Grid Utama -->
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-                    <!-- Kolom Kiri: Form Input -->
-                    <div class="lg:col-span-2 space-y-6">
-                        <div class="bg-white p-6 rounded-2xl shadow-sm">
-                            <h3 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-4 mb-6">Detail
-                                Pengajuan</h3>
-
-                            <!-- Jadwal -->
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div class="md:col-span-1">
-                                    <label for="tanggal"
-                                        class="block text-sm font-medium text-gray-700 mb-2">Tanggal Peminjaman</label>
-                                    <input type="date" id="tanggal" name="tanggal" value="{{ old('tanggal') }}"
-                                        class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-                                        required>
-                                    @error('tanggal')
-                                        <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                                    @enderror
-                                </div>
-                                <div class="md:col-span-1 time-picker-container">
-                                    <label for="jam_mulai" class="block text-sm font-medium text-gray-700 mb-2">Jam
-                                        Mulai</label>
-                                    <input type="time" id="jam_mulai" name="jam_mulai" value="{{ old('jam_mulai') }}"
-                                        class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-                                        min="07:00" max="22:00" step="900" required>
-                                    @error('jam_mulai')
-                                        <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                                    @enderror
-                                </div>
-                                <div class="md:col-span-1 time-picker-container">
-                                    <label for="jam_selesai" class="block text-sm font-medium text-gray-700 mb-2">Jam
-                                        Selesai</label>
-                                    <input type="time" id="jam_selesai" name="jam_selesai"
-                                        value="{{ old('jam_selesai') }}"
-                                        class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-                                        min="07:00" max="22:00" step="900" required>
-                                    @error('jam_selesai')
-                                        <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                                    @enderror
-                                </div>
-                            </div>
-                            
-                            <!-- Peringatan Konflik -->
-                            <div id="warning" class="mt-4 text-red-600 text-sm hidden conflict-warning">
-                                <p><strong>Perhatian:</strong> Jam yang Anda pilih sudah terpakai atau tumpang tindih
-                                    dengan jadwal lain.</p>
-                            </div>
-
-                            <!-- Saran Waktu Tersedia -->
-                            <div id="time-suggestions" class="mt-4 hidden">
-                                <h4 class="text-sm font-medium text-gray-700 mb-2">💡 Saran Waktu Tersedia:</h4>
-                                <div id="suggestions-container" class="space-y-2"></div>
-                            </div>
-
-                            <!-- Tujuan -->
-                            <div class="mt-6">
-                                <label for="tujuan" class="block text-sm font-medium text-gray-700 mb-2">Tujuan
-                                    Peminjaman</label>
-                                <input type="text" id="tujuan" name="tujuan" value="{{ old('tujuan') }}"
-                                    placeholder="Contoh: Rapat Himpunan Mahasiswa"
-                                    class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500"
-                                    required>
-                                @error('tujuan')
-                                    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                                @enderror
-                            </div>
-
-                            <!-- Upload Dokumen -->
-                            <div class="mt-6">
-                                <label for="dokumen" class="block text-sm font-medium text-gray-700 mb-2">Upload Surat
-                                    Permohonan <span class="text-gray-400">(Opsional, PDF)</span></label>
-                                <input type="file" id="dokumen" name="dokumen" accept="application/pdf"
-                                    class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100">
-                                @error('dokumen')
-                                    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
-                                @enderror
-                            </div>
-                        </div>
-
-                        <!-- Informasi Jadwal yang Tidak Tersedia -->
-                        <div class="bg-white p-6 rounded-2xl shadow-sm">
-                            <h3 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-4 mb-4">
-                                <i class="fas fa-clock mr-2"></i>Status Ketersediaan Waktu
-                            </h3>
-                            <div id="availability-info">
-                                <p class="text-gray-500 text-sm">Pilih tanggal untuk melihat jadwal yang tidak tersedia</p>
-                            </div>
-                        </div>
-
-                        <!-- Daftar Tanggal yang Sudah Dipinjam -->
-                        <div class="bg-white p-6 rounded-2xl shadow-sm">
-                            <h3 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-4 mb-4">
-                                <i class="fas fa-calendar-times mr-2"></i>Daftar Tanggal yang Sudah Dipinjam
-                            </h3>
-                            <div id="occupied-dates" class="occupied-dates-list">
-                                <p class="text-gray-500 text-sm">Memuat data...</p>
-                            </div>
-                        </div>
-
-                        <!-- Tombol Aksi -->
-                        <div class="bg-white p-4 rounded-2xl shadow-sm flex justify-end items-center">
-                            <a href="{{ route('katalog.index') }}"
-                                class="font-semibold text-gray-600 hover:text-gray-800 mr-4">Batal</a>
-                            <button id="submitBtn" type="submit"
-                                class="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed">
-                                <i class="fas fa-paper-plane mr-1"></i>
-                                Kirim Pengajuan
+                <div class="p-6">
+                    <!-- Date Selector for Schedule -->
+                    <div class="mb-6">
+                        <label for="check-tanggal" class="block text-sm font-semibold text-gray-700 mb-2">
+                            Pilih tanggal untuk melihat jadwal:
+                        </label>
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <input type="date" id="check-tanggal" value="{{ date('Y-m-d') }}"
+                                min="{{ date('Y-m-d') }}"
+                                class="flex-1 px-4 py-2 text-sm rounded-lg border border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-200">
+                            <button type="button" id="check-availability-btn"
+                                class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg shadow-sm hover:shadow transition-all duration-200 flex items-center justify-center">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                                Cek Jadwal
                             </button>
                         </div>
                     </div>
 
-                    <!-- Kolom Kanan: Info & Kalender -->
-                    <div class="lg:col-span-1 space-y-6">
-                        <!-- Informasi Ruangan -->
-                        <div class="bg-white p-6 rounded-2xl shadow-sm">
-                            <h3 class="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-4 mb-4">Informasi
-                                Ruangan</h3>
-                            <div class="space-y-3">
-                                <div>
-                                    <label class="text-sm font-medium text-gray-500">Nama Ruangan</label>
-                                    <p class="text-gray-800 font-semibold">{{ $ruangan->nama }}</p>
-                                </div>
-                                <div>
-                                    <label class="text-sm font-medium text-gray-500">Gedung</label>
-                                    <p class="text-gray-800">{{ $ruangan->gedung->nama }}</p>
-                                </div>
-                                <div>
-                                    <label class="text-sm font-medium text-gray-500">Kapasitas</label>
-                                    <p class="text-gray-800">{{ $ruangan->kapasitas }} orang</p>
-                                </div>
+                    <!-- Loading State -->
+                    <div id="schedule-loading" class="hidden text-center py-8">
+                        <svg class="animate-spin h-10 w-10 mx-auto text-green-600" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                            </path>
+                        </svg>
+                        <p class="mt-3 text-sm text-gray-600">Memuat jadwal...</p>
+                    </div>
+
+                    <!-- Schedule Display -->
+                    <div id="schedule-display" class="space-y-3">
+                        <div class="bg-gray-50 border-l-4 border-gray-400 p-4 rounded-r-lg">
+                            <div class="flex items-center">
+                                <svg class="w-5 h-5 text-gray-500 mr-3 flex-shrink-0" fill="currentColor"
+                                    viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                <p class="text-sm text-gray-700">
+                                    Pilih tanggal di atas untuk melihat jadwal peminjaman ruangan ini.
+                                </p>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Kalender -->
-                        <div class="bg-white p-6 rounded-2xl shadow-sm">
-                            <h3 class="text-lg font-semibold text-gray-800 mb-4">Jadwal Ketersediaan</h3>
-                            <div id="calendar" class="border rounded-lg shadow-inner p-2 bg-gray-50"></div>
-                            <div class="text-xs text-gray-500 mt-3">
-                                <div class="flex items-center mb-1">
-                                    <span class="time-slot-indicator bg-red-500"></span>
-                                    <span>Sudah Disetujui (Tidak Tersedia)</span>
-                                </div>
-                                <div class="flex items-center mb-1">
-                                    <span class="time-slot-indicator bg-yellow-400"></span>
-                                    <span>Menunggu Persetujuan</span>
-                                </div>
-                                <div class="flex items-center">
-                                    <span class="time-slot-indicator bg-green-500"></span>
-                                    <span>Tersedia</span>
+                    <!-- Empty State -->
+                    <div id="schedule-empty" class="hidden">
+                        <div class="bg-green-50 border-l-4 border-green-500 p-4 rounded-r-lg">
+                            <div class="flex items-center">
+                                <svg class="w-5 h-5 text-green-500 mr-3 flex-shrink-0" fill="currentColor"
+                                    viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                <div>
+                                    <p class="font-semibold text-green-800">
+                                        ✅ Ruangan Tersedia!
+                                    </p>
+                                    <p class="text-sm text-green-700 mt-1">
+                                        Tidak ada peminjaman pada tanggal yang dipilih. Ruangan dapat dipinjam sepanjang
+                                        hari.
+                                    </p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
+                    <!-- Error State -->
+                    <div id="schedule-error" class="hidden">
+                        <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded-r-lg">
+                            <div class="flex items-center">
+                                <svg class="w-5 h-5 text-red-500 mr-3 flex-shrink-0" fill="currentColor"
+                                    viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                <p class="text-sm text-red-700">
+                                    Gagal memuat jadwal. Silakan coba lagi.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </form>
+            </div>
+
+            <!-- Form Card -->
+            <div class="bg-white rounded-2xl shadow-sm">
+                <div class="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-bold text-gray-800 flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Formulir Pengajuan
+                    </h3>
+                </div>
+
+                <form action="{{ route('peminjaman.store') }}" method="POST" enctype="multipart/form-data"
+                    class="p-6 space-y-6">
+                    @csrf
+                    <input type="hidden" name="ruangan_id" value="{{ $ruangan->id }}">
+
+                    <!-- Tanggal Peminjaman -->
+                    <div class="space-y-2">
+                        <label for="tanggal" class="block text-sm font-semibold text-gray-700">
+                            <span class="flex items-center">
+                                <svg class="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                Tanggal Peminjaman
+                                <span class="text-red-500 ml-1">*</span>
+                            </span>
+                        </label>
+                        <input type="date" id="tanggal" name="tanggal" value="{{ old('tanggal') }}"
+                            min="{{ date('Y-m-d') }}" required
+                            class="w-full px-4 py-2 text-sm rounded-lg border border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-200 @error('tanggal') border-red-500 @enderror">
+                        @error('tanggal')
+                            <p class="mt-1 text-xs text-red-500 flex items-center">
+                                <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                {{ $message }}
+                            </p>
+                        @enderror
+                    </div>
+
+                    <!-- Waktu Peminjaman -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Jam Mulai -->
+                        <div class="space-y-2">
+                            <label for="jam_mulai" class="block text-sm font-semibold text-gray-700">
+                                <span class="flex items-center">
+                                    <svg class="w-5 h-5 mr-2 text-green-500" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    Jam Mulai
+                                    <span class="text-red-500 ml-1">*</span>
+                                </span>
+                            </label>
+                            <input type="time" id="jam_mulai" name="jam_mulai" value="{{ old('jam_mulai') }}"
+                                required
+                                class="w-full px-4 py-2 text-sm rounded-lg border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 @error('jam_mulai') border-red-500 @enderror">
+                            @error('jam_mulai')
+                                <p class="mt-1 text-sm text-red-500 flex items-center">
+                                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd"
+                                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                    {{ $message }}
+                                </p>
+                            @enderror
+                        </div>
+
+                        <!-- Jam Selesai -->
+                        <div class="space-y-2">
+                            <label for="jam_selesai" class="block text-sm font-semibold text-gray-700">
+                                <span class="flex items-center">
+                                    <svg class="w-5 h-5 mr-2 text-red-500" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    Jam Selesai
+                                    <span class="text-red-500 ml-1">*</span>
+                                </span>
+                            </label>
+                            <input type="time" id="jam_selesai" name="jam_selesai"
+                                value="{{ old('jam_selesai') }}" required
+                                class="w-full px-4 py-2 text-sm rounded-lg border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 @error('jam_selesai') border-red-500 @enderror">
+                            @error('jam_selesai')
+                                <p class="mt-1 text-sm text-red-500 flex items-center">
+                                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd"
+                                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                            clip-rule="evenodd" />
+                                    </svg>
+                                    {{ $message }}
+                                </p>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <!-- Info Waktu -->
+                    <div class="bg-gray-50 border-l-4 border-gray-400 p-4 rounded-r-lg">
+                        <div class="flex">
+                            <svg class="w-5 h-5 text-gray-500 mr-3 flex-shrink-0" fill="currentColor"
+                                viewBox="0 0 20 20">
+                                <path fill-rule="evenodd"
+                                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                            <p class="text-sm text-gray-700">
+                                Pastikan jam selesai lebih besar dari jam mulai. Maksimal durasi peminjaman adalah 1
+                                hari
+                                penuh.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Tujuan Peminjaman -->
+                    <div class="space-y-2">
+                        <label for="tujuan" class="block text-sm font-semibold text-gray-700">
+                            <span class="flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                Tujuan Peminjaman
+                                <span class="text-red-500 ml-1">*</span>
+                            </span>
+                        </label>
+                        <textarea id="tujuan" name="tujuan" rows="5" required
+                            placeholder="Contoh: Rapat organisasi, Seminar, Kuliah tamu, dll."
+                            class="w-full px-4 py-2 text-sm rounded-lg border border-gray-300 focus:border-green-500 focus:ring-1 focus:ring-green-500 resize-none @error('tujuan') border-red-500 @enderror">{{ old('tujuan') }}</textarea>
+                        @error('tujuan')
+                            <p class="mt-1 text-sm text-red-500 flex items-center">
+                                <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                {{ $message }}
+                            </p>
+                        @enderror
+                        <p class="text-xs text-gray-500">
+                            Jelaskan secara detail tujuan peminjaman ruangan (maksimal 500 karakter)
+                        </p>
+                    </div>
+
+                    <!-- Upload Dokumen -->
+                    <div class="space-y-2">
+                        <label for="dokumen" class="block text-sm font-semibold text-gray-700">
+                            <span class="flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-gray-500" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                </svg>
+                                Dokumen Pendukung
+                                <span class="text-gray-400 ml-1 text-xs">(Opsional)</span>
+                            </span>
+                        </label>
+                        <div class="flex items-center justify-center w-full">
+                            <label for="dokumen"
+                                class="flex flex-col items-center justify-center w-full h-40 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                                <div class="flex flex-col items-center justify-center pt-5 pb-6"
+                                    id="upload-placeholder">
+                                    <svg class="w-10 h-10 mb-3 text-gray-400" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                    </svg>
+                                    <p class="mb-2 text-sm text-gray-500">
+                                        <span class="font-semibold">Klik untuk upload</span> atau drag and drop
+                                    </p>
+                                    <p class="text-xs text-gray-500">
+                                        PDF only (MAX. 2MB)
+                                    </p>
+                                </div>
+                                <div class="hidden" id="file-info">
+                                    <div class="flex items-center space-x-2 text-sm text-gray-700">
+                                        <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd"
+                                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                                clip-rule="evenodd" />
+                                        </svg>
+                                        <span id="file-name" class="font-medium"></span>
+                                    </div>
+                                </div>
+                                <input id="dokumen" name="dokumen" type="file" class="hidden"
+                                    accept=".pdf" />
+                            </label>
+                        </div>
+                        @error('dokumen')
+                            <p class="mt-1 text-sm text-red-500 flex items-center">
+                                <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                        clip-rule="evenodd" />
+                                </svg>
+                                {{ $message }}
+                            </p>
+                        @enderror
+                    </div>
+
+                    <!-- Info Penting -->
+                    <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-r-lg">
+                        <div class="flex">
+                            <svg class="w-5 h-5 text-yellow-500 mr-3 flex-shrink-0 mt-0.5" fill="currentColor"
+                                viewBox="0 0 20 20">
+                                <path fill-rule="evenodd"
+                                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                                    clip-rule="evenodd" />
+                            </svg>
+                            <div class="space-y-1">
+                                <p class="text-sm font-semibold text-yellow-800">
+                                    Informasi Penting:
+                                </p>
+                                <ul class="list-disc list-inside text-sm text-yellow-700 space-y-1">
+                                    <li>Pengajuan akan diproses oleh admin maksimal 2x24 jam</li>
+                                    <li>Pastikan semua data yang diisi sudah benar</li>
+                                    <li>Dokumen pendukung akan mempercepat proses approval</li>
+                                    <li>Anda akan mendapat notifikasi melalui email setelah pengajuan disetujui/ditolak
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex flex-col sm:flex-row gap-3 pt-6 border-t border-gray-100">
+                        <button type="submit"
+                            class="w-full sm:flex-1 px-6 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg shadow-sm hover:shadow transition-all duration-200 flex items-center justify-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Pilih & Ajukan Peminjaman
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Tips Card -->
+            <div class="mt-6 bg-white rounded-lg shadow-sm p-6">
+                <h4 class="font-bold text-lg text-gray-800 mb-4 flex items-center">
+                    <svg class="w-6 h-6 mr-2 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd"
+                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                            clip-rule="evenodd" />
+                    </svg>
+                    Tips Mengajukan Peminjaman:
+                </h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+                    <div class="flex items-start">
+                        <svg class="w-5 h-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="currentColor"
+                            viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span>Ajukan minimal 3 hari sebelum tanggal penggunaan</span>
+                    </div>
+                    <div class="flex items-start">
+                        <svg class="w-5 h-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="currentColor"
+                            viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span>Sertakan dokumen pendukung seperti proposal atau surat</span>
+                    </div>
+                    <div class="flex items-start">
+                        <svg class="w-5 h-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="currentColor"
+                            viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span>Cek ketersediaan ruangan di kalender sebelum mengajukan</span>
+                    </div>
+                    <div class="flex items-start">
+                        <svg class="w-5 h-5 text-green-500 mr-2 flex-shrink-0 mt-0.5" fill="currentColor"
+                            viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        <span>Pastikan tujuan peminjaman jelas dan detail</span>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    {{-- FullCalendar JS --}}
-    <x-slot name="scripts">
-        <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
-        <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                const calendarEl = document.getElementById('calendar');
-                const submitBtn = document.getElementById('submitBtn');
-                const warningEl = document.getElementById('warning');
-                const availabilityInfo = document.getElementById('availability-info');
-                const occupiedDates = document.getElementById('occupied-dates');
-                const timeSuggestions = document.getElementById('time-suggestions');
-                const suggestionsContainer = document.getElementById('suggestions-container');
-                const tanggalInput = document.getElementById('tanggal');
-                const jamMulaiInput = document.getElementById('jam_mulai');
-                const jamSelesaiInput = document.getElementById('jam_selesai');
-                let existingEvents = [];
-                let currentDateEvents = [];
-                let allOccupiedDates = [];
+    <!-- JavaScript for file upload preview -->
+    <script>
+        document.getElementById('dokumen').addEventListener('change', function(e) {
+            const fileName = e.target.files[0]?.name;
+            const placeholder = document.getElementById('upload-placeholder');
+            const fileInfo = document.getElementById('file-info');
+            const fileNameSpan = document.getElementById('file-name');
 
-                const calendar = new FullCalendar.Calendar(calendarEl, {
-                    initialView: 'timeGridDay',
-                    headerToolbar: {
-                        left: '',
-                        center: 'title',
-                        right: ''
-                    },
-                    slotMinTime: '07:00:00',
-                    slotMaxTime: '22:00:00',
-                    allDaySlot: false,
-                    height: 'auto',
-                    selectable: false,
-                    events: function(fetchInfo, successCallback, failureCallback) {
-                        const selectedDate = tanggalInput.value;
-                        if (!selectedDate) {
-                            successCallback([]);
-                            updateAvailabilityInfo([]);
-                            return;
-                        }
+            if (fileName) {
+                placeholder.classList.add('hidden');
+                fileInfo.classList.remove('hidden');
+                fileNameSpan.textContent = fileName;
+            } else {
+                placeholder.classList.remove('hidden');
+                fileInfo.classList.add('hidden');
+            }
+        });
 
-                        fetch(
-                                `/peminjaman/availability?ruangan_id={{ $ruangan->id }}&tanggal=${selectedDate}`)
-                            .then(response => response.json())
-                            .then(events => {
-                                currentDateEvents = events;
-                                existingEvents = events.map(e => ({
-                                    start: new Date(`${selectedDate}T${e.start}`),
-                                    end: new Date(`${selectedDate}T${e.end}`),
-                                    status: e.status
-                                }));
+        // Validation for time
+        document.getElementById('jam_selesai').addEventListener('change', function() {
+            const jamMulai = document.getElementById('jam_mulai').value;
+            const jamSelesai = this.value;
 
-                                const formatted = events.map(e => ({
-                                    title: e.status === 'disetujui' ? 'Tidak Tersedia' : 'Menunggu Persetujuan',
-                                    start: `${selectedDate}T${e.start}`,
-                                    end: `${selectedDate}T${e.end}`,
-                                    backgroundColor: e.status === 'disetujui' ? '#ef4444' : '#facc15',
-                                    borderColor: e.status === 'disetujui' ? '#dc2626' : '#eab308',
-                                    textColor: '#ffffff'
-                                }));
-                                
-                                updateAvailabilityInfo(events);
-                                successCallback(formatted);
-                                checkConflict();
-                            })
-                            .catch(failureCallback);
-                    },
-                    dateSet: function(dateInfo) {
-                        const newDate = dateInfo.view.currentStart.toISOString().slice(0, 10);
-                        if (tanggalInput.value !== newDate) {
-                            tanggalInput.value = newDate;
-                            calendar.refetchEvents();
-                        }
+            if (jamMulai && jamSelesai && jamSelesai <= jamMulai) {
+                alert('Jam selesai harus lebih besar dari jam mulai!');
+                this.value = '';
+            }
+        });
+
+        // Check Availability Function
+        const checkAvailabilityBtn = document.getElementById('check-availability-btn');
+        const checkTanggal = document.getElementById('check-tanggal');
+        const scheduleDisplay = document.getElementById('schedule-display');
+        const scheduleLoading = document.getElementById('schedule-loading');
+        const scheduleEmpty = document.getElementById('schedule-empty');
+        const scheduleError = document.getElementById('schedule-error');
+        const ruanganId = {{ $ruangan->id }};
+
+        checkAvailabilityBtn.addEventListener('click', function() {
+            const tanggal = checkTanggal.value;
+
+            if (!tanggal) {
+                alert('Pilih tanggal terlebih dahulu!');
+                return;
+            }
+
+            // Show loading, hide others
+            scheduleLoading.classList.remove('hidden');
+            scheduleDisplay.innerHTML = '';
+            scheduleEmpty.classList.add('hidden');
+            scheduleError.classList.add('hidden');
+
+            // Fetch availability data
+            fetch(`{{ route('peminjaman.availability') }}?ruangan_id=${ruanganId}&tanggal=${tanggal}`, {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
                     }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    scheduleLoading.classList.add('hidden');
+
+                    if (data.length === 0) {
+                        // No bookings, room is available
+                        scheduleEmpty.classList.remove('hidden');
+                    } else {
+                        // Display bookings
+                        displaySchedule(data, tanggal);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    scheduleLoading.classList.add('hidden');
+                    scheduleError.classList.remove('hidden');
                 });
-                calendar.render();
+        });
 
-                // Load all occupied dates for this room
-                function loadAllOccupiedDates() {
-                    fetch(`/peminjaman/occupied-dates?ruangan_id={{ $ruangan->id }}`)
-                        .then(response => response.json())
-                        .then(data => {
-                            allOccupiedDates = data;
-                            updateOccupiedDatesList();
-                        })
-                        .catch(error => {
-                            console.error('Error loading occupied dates:', error);
-                            occupiedDates.innerHTML = '<p class="text-red-500 text-sm">Gagal memuat data</p>';
-                        });
-                }
-
-                function updateOccupiedDatesList() {
-                    let html = '';
-                    
-                    if (allOccupiedDates.length === 0) {
-                        html = '<div class="available-info"><strong>✅ Belum ada peminjaman yang disetujui</strong><br><small>Ruangan masih kosong untuk semua tanggal</small></div>';
-                    } else {
-                        // Group by date
-                        const groupedByDate = {};
-                        allOccupiedDates.forEach(item => {
-                            if (!groupedByDate[item.tanggal]) {
-                                groupedByDate[item.tanggal] = [];
-                            }
-                            groupedByDate[item.tanggal].push(item);
-                        });
-
-                        html = '<div class="mb-3"><strong>📅 Jadwal Peminjaman yang Sudah Ada:</strong></div>';
-                        
-                        Object.keys(groupedByDate).sort().forEach(date => {
-                            const dateEvents = groupedByDate[date];
-                            const formattedDate = new Date(date).toLocaleDateString('id-ID', {
-                                weekday: 'long',
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
-                            });
-                            
-                            html += `<div class="mb-3">
-                                <h4 class="font-semibold text-gray-700 mb-2">${formattedDate}</h4>`;
-                            
-                            dateEvents.forEach(event => {
-                                const statusClass = event.status === 'disetujui' ? 'date-approved' : 'date-pending';
-                                const statusText = event.status === 'disetujui' ? 'Disetujui' : 'Menunggu';
-                                const statusIcon = event.status === 'disetujui' ? '🔒' : '⏳';
-                                
-                                html += `<div class="date-item ${statusClass}">
-                                    <div class="flex justify-between items-start">
-                                        <div>
-                                            <strong>${statusIcon} ${event.jam_mulai} - ${event.jam_selesai} WIB</strong>
-                                            <div class="text-xs mt-1">Status: ${statusText}</div>
-                                            <div class="text-xs text-gray-600">Tujuan: ${event.tujuan}</div>
-                                        </div>
-                                    </div>
-                                </div>`;
-                            });
-                            
-                            html += '</div>';
-                        });
-                    }
-                    
-                    occupiedDates.innerHTML = html;
-                }
-
-                function updateAvailabilityInfo(events) {
-                    let html = '';
-                    
-                    if (events.length === 0) {
-                        html = '<div class="available-info"><strong>✅ Ruangan tersedia sepanjang hari</strong><br><small>Anda dapat memilih waktu dari 07:00 - 22:00 WIB</small></div>';
-                    } else {
-                        html = '<div class="mb-3"><strong>📅 Jadwal yang Tidak Tersedia:</strong></div>';
-                        
-                        // Grup berdasarkan status
-                        const approvedEvents = events.filter(e => e.status === 'disetujui');
-                        const pendingEvents = events.filter(e => e.status === 'menunggu');
-                        
-                        if (approvedEvents.length > 0) {
-                            html += '<div class="mb-2"><strong>🔒 Sudah Disetujui (Tidak Bisa Dipilih):</strong></div>';
-                            approvedEvents.forEach(event => {
-                                html += `<div class="unavailable-slot">
-                                    <strong>${event.start} - ${event.end} WIB</strong>
-                                    <div class="text-xs text-red-600 mt-1">Ruangan sudah dipinjam pada waktu ini</div>
-                                </div>`;
-                            });
-                        }
-                        
-                        if (pendingEvents.length > 0) {
-                            html += '<div class="mb-2 mt-3"><strong>⏳ Menunggu Persetujuan:</strong></div>';
-                            pendingEvents.forEach(event => {
-                                html += `<div class="pending-slot">
-                                    <strong>${event.start} - ${event.end} WIB</strong>
-                                    <div class="text-xs text-yellow-700 mt-1">Peminjaman sedang diproses admin</div>
-                                </div>`;
-                            });
-                        }
-                        
-                        // Tampilkan waktu yang tersedia
-                        const availableSlots = getAvailableTimeSlots(events);
-                        if (availableSlots.length > 0) {
-                            html += '<div class="mb-2 mt-3"><strong>✅ Waktu Tersedia:</strong></div>';
-                            availableSlots.forEach(slot => {
-                                html += `<div class="available-info">
-                                    <strong>${slot.start} - ${slot.end} WIB</strong>
-                                    <div class="text-xs text-green-700 mt-1">Waktu ini dapat dipilih</div>
-                                </div>`;
-                            });
-                        }
-                    }
-                    
-                    availabilityInfo.innerHTML = html;
-                    updateTimeSuggestions(events);
-                }
-
-                function updateTimeSuggestions(events) {
-                    const availableSlots = getAvailableTimeSlots(events);
-                    
-                    if (availableSlots.length === 0) {
-                        timeSuggestions.classList.add('hidden');
-                        return;
-                    }
-                    
-                    let html = '';
-                    availableSlots.forEach(slot => {
-                        html += `<div class="time-suggestion" data-start="${slot.start}" data-end="${slot.end}">
-                            <strong>${slot.start} - ${slot.end} WIB</strong>
-                            <div class="text-xs mt-1">Klik untuk menggunakan waktu ini</div>
-                        </div>`;
-                    });
-                    
-                    suggestionsContainer.innerHTML = html;
-                    timeSuggestions.classList.remove('hidden');
-                    
-                    // Add click handlers to suggestions
-                    document.querySelectorAll('.time-suggestion').forEach(suggestion => {
-                        suggestion.addEventListener('click', function() {
-                            jamMulaiInput.value = this.dataset.start;
-                            jamSelesaiInput.value = this.dataset.end;
-                            checkConflict();
-                        });
-                    });
-                }
-
-                function getAvailableTimeSlots(events) {
-                    const slots = [];
-                    const startHour = 7; // 07:00
-                    const endHour = 22; // 22:00
-                    
-                    // Sort events by start time
-                    const sortedEvents = events.sort((a, b) => a.start.localeCompare(b.start));
-                    
-                    let currentTime = `${startHour.toString().padStart(2, '0')}:00`;
-                    
-                    sortedEvents.forEach(event => {
-                        if (currentTime < event.start) {
-                            // Only add slots that are at least 1 hour long
-                            const startMinutes = timeToMinutes(currentTime);
-                            const endMinutes = timeToMinutes(event.start);
-                            if (endMinutes - startMinutes >= 60) {
-                                slots.push({
-                                    start: currentTime,
-                                    end: event.start
-                                });
-                            }
-                        }
-                        currentTime = event.end > currentTime ? event.end : currentTime;
-                    });
-                    
-                    // Check if there's time after the last event
-                    if (currentTime < `${endHour}:00`) {
-                        const startMinutes = timeToMinutes(currentTime);
-                        const endMinutes = timeToMinutes(`${endHour}:00`);
-                        if (endMinutes - startMinutes >= 60) {
-                            slots.push({
-                                start: currentTime,
-                                end: `${endHour}:00`
-                            });
-                        }
-                    }
-                    
-                    return slots;
-                }
-
-                function timeToMinutes(time) {
-                    const [hours, minutes] = time.split(':').map(Number);
-                    return hours * 60 + minutes;
-                }
-
-                function isTimeConflict(start, end) {
-                    return existingEvents.some(event =>
-                        (start >= event.start && start < event.end) ||
-                        (end > event.start && end <= event.end) ||
-                        (start <= event.start && end >= event.end)
-                    );
-                }
-
-                function checkConflict() {
-                    const tanggal = tanggalInput.value;
-                    const jamMulai = jamMulaiInput.value;
-                    const jamSelesai = jamSelesaiInput.value;
-
-                    if (!tanggal || !jamMulai || !jamSelesai) {
-                        submitBtn.disabled = false;
-                        submitBtn.classList.remove('disabled:opacity-50', 'disabled:cursor-not-allowed');
-                        warningEl.classList.add('hidden');
-                        return;
-                    }
-
-                    if (jamSelesai <= jamMulai) {
-                        warningEl.innerHTML =
-                            "<p><strong>⚠️ Perhatian:</strong> Jam selesai tidak boleh sebelum atau sama dengan jam mulai.</p>";
-                        warningEl.classList.remove('hidden');
-                        submitBtn.disabled = true;
-                        submitBtn.classList.add('disabled:opacity-50', 'disabled:cursor-not-allowed');
-                        return;
-                    }
-
-                    const startTime = new Date(`${tanggal}T${jamMulai}`);
-                    const endTime = new Date(`${tanggal}T${jamSelesai}`);
-                    const conflict = isTimeConflict(startTime, endTime);
-
-                    submitBtn.disabled = conflict;
-                    if (conflict) {
-                        // Find conflicting event details
-                        const conflictingEvent = existingEvents.find(event =>
-                            (startTime >= event.start && startTime < event.end) ||
-                            (endTime > event.start && endTime <= event.end) ||
-                            (startTime <= event.start && endTime >= event.end)
-                        );
-                        
-                        const conflictType = conflictingEvent.status === 'disetujui' ? 'sudah disetujui' : 'sedang menunggu persetujuan';
-                        const conflictStart = conflictingEvent.start.toTimeString().slice(0, 5);
-                        const conflictEnd = conflictingEvent.end.toTimeString().slice(0, 5);
-                        
-                        warningEl.innerHTML =
-                            `<p><strong>🚫 Jadwal Bentrok!</strong> Waktu ${jamMulai}-${jamSelesai} bentrok dengan peminjaman yang ${conflictType} (${conflictStart}-${conflictEnd} WIB). Silakan pilih waktu lain dari saran di bawah.</p>`;
-                        warningEl.classList.remove('hidden');
-                        submitBtn.classList.add('disabled:opacity-50', 'disabled:cursor-not-allowed');
-                    } else {
-                        warningEl.classList.add('hidden');
-                        submitBtn.classList.remove('disabled:opacity-50', 'disabled:cursor-not-allowed');
-                    }
-                }
-
-                jamMulaiInput.addEventListener('change', checkConflict);
-                jamSelesaiInput.addEventListener('change', checkConflict);
-                tanggalInput.addEventListener('change', function() {
-                    if (this.value) {
-                        calendar.gotoDate(this.value);
-                        calendar.refetchEvents();
-                    }
-                });
-
-                // Set default date to today
-                const today = new Date().toISOString().slice(0, 10);
-                tanggalInput.value = today;
-                calendar.gotoDate(today);
-                calendar.refetchEvents();
-                
-                // Load all occupied dates on page load
-                loadAllOccupiedDates();
+        function displaySchedule(bookings, selectedDate) {
+            const formattedDate = new Date(selectedDate).toLocaleDateString('id-ID', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
             });
-        </script>
-    </x-slot>
+
+            let html = `
+                <div class="mb-4">
+                    <h4 class="font-semibold text-gray-800 mb-2">
+                        📅 Jadwal pada ${formattedDate}
+                    </h4>
+                    <p class="text-sm text-gray-600 mb-4">
+                        Terdapat <span class="font-bold text-red-600">${bookings.length} peminjaman</span> pada tanggal ini
+                    </p>
+                </div>
+                <div class="space-y-3">
+            `;
+
+            bookings.forEach((booking, index) => {
+                const statusBadge = getStatusBadge(booking.status);
+                const timeRange = `${booking.start.substring(0, 5)} - ${booking.end.substring(0, 5)}`;
+
+                html += `
+                    <div class="bg-gray-50 rounded-lg p-4 border-l-4 ${getStatusBorderColor(booking.status)}">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span class="font-semibold text-gray-900">${timeRange}</span>
+                                    ${statusBadge}
+                                </div>
+                                <p class="text-sm text-gray-600 ml-7">
+                                    ${booking.tujuan || 'Tidak ada keterangan'}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `
+                </div>
+                <div class="mt-4 bg-yellow-50 border-l-4 border-yellow-500 p-4 rounded-r-lg">
+                    <div class="flex">
+                        <svg class="w-5 h-5 text-yellow-500 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
+                        <p class="text-sm text-yellow-700">
+                            <strong>Perhatian:</strong> Pastikan waktu yang Anda pilih tidak bentrok dengan jadwal di atas.
+                        </p>
+                    </div>
+                </div>
+            `;
+
+            scheduleDisplay.innerHTML = html;
+        }
+
+        function getStatusBadge(status) {
+            const badges = {
+                'menunggu': '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Menunggu</span>',
+                'disetujui': '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Disetujui</span>',
+                'ditolak': '<span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Ditolak</span>'
+            };
+            return badges[status] || '';
+        }
+
+        function getStatusBorderColor(status) {
+            const colors = {
+                'menunggu': 'border-yellow-500',
+                'disetujui': 'border-green-500',
+                'ditolak': 'border-red-500'
+            };
+            return colors[status] || 'border-gray-500';
+        }
+
+        // Auto-fill tanggal form when checking schedule
+        checkTanggal.addEventListener('change', function() {
+            const tanggalInput = document.getElementById('tanggal');
+            if (!tanggalInput.value) {
+                tanggalInput.value = this.value;
+            }
+        });
+
+        // Sync tanggal form with check-tanggal
+        document.getElementById('tanggal').addEventListener('change', function() {
+            checkTanggal.value = this.value;
+            // Auto check availability when date changes
+            if (this.value) {
+                checkAvailabilityBtn.click();
+            }
+        });
+
+        // Auto-check availability on page load for today
+        document.addEventListener('DOMContentLoaded', function() {
+            // Small delay to ensure everything is loaded
+            setTimeout(() => {
+                checkAvailabilityBtn.click();
+            }, 300);
+        });
+    </script>
 </x-app-layout>
